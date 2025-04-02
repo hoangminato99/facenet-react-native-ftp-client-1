@@ -29,6 +29,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URLDecoder;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -66,6 +67,7 @@ public class RNFtpClientModule extends ReactContextBaseJavaModule {
     super(reactContext);
     this.reactContext = reactContext;
   }
+
 
   @ReactMethod
   public void setup(String ip_address, int port, String username, String password){
@@ -226,16 +228,21 @@ public class RNFtpClientModule extends ReactContextBaseJavaModule {
         try {
           login(client);
           client.setFileType(FTP.BINARY_FILE_TYPE);
-          File localFile = new File(path);
-          long totalBytes = localFile.length();
+
+
           long finishBytes = 0;
 
           String remoteFile = remoteDestinationPath;
-          InputStream inputStream = new FileInputStream(localFile);
 
-          Log.d(TAG,"Start uploading file");
+          String remoteFileConvert = URLDecoder.decode(remoteFile, "UTF-8");
+          String localPathFileConvert = URLDecoder.decode(path, "UTF-8");
+          File localFile = new File(localPathFileConvert);
+          InputStream inputStream = new FileInputStream(localPathFileConvert);
+          Log.d(TAG, "remoteFileConvert: " + remoteFileConvert + ", localPathFileConvert: " + localPathFileConvert);
+          long totalBytes = localFile.length();
+          Log.d(TAG,"Start uploading file: " + totalBytes);
 
-          OutputStream outputStream = client.storeFileStream(remoteFile);
+          OutputStream outputStream = client.storeFileStream(remoteFileConvert);
           byte[] bytesIn = new byte[4096];
           int read = 0;
 
@@ -279,6 +286,23 @@ public class RNFtpClientModule extends ReactContextBaseJavaModule {
     });
     t.start();
     uploadingTasks.put(token,t);
+  }
+
+  @ReactMethod
+  public void makedir(final String path, final Promise promise){
+    new Thread(new Runnable() {
+      @Override
+      public void run() {
+        FTPClient client = new FTPClient();
+        try {
+          login(client);
+          client.makeDirectory(path);
+          promise.resolve(true);
+        } catch (IOException e) {
+          promise.reject("ERROR",e.getMessage());
+        }
+      }
+    }).start();
   }
 
   @ReactMethod
@@ -430,6 +454,31 @@ public class RNFtpClientModule extends ReactContextBaseJavaModule {
     }
     downloadingTasks.remove(token);
     promise.resolve(true);
+  }
+
+  @ReactMethod
+  public void moveFileOrDirectory(final String sourcePath, final String destinationPath, final Promise promise) {
+    new Thread(new Runnable() {
+      @Override
+      public void run() {
+        FTPClient client = new FTPClient();
+        try {
+          login(client); // Đăng nhập FTP server
+
+          boolean success = client.rename(sourcePath, destinationPath);
+
+          if (success) {
+            promise.resolve(true);
+          } else {
+            promise.reject("ERROR", "Không thể di chuyển " + sourcePath + " đến " + destinationPath);
+          }
+        } catch (IOException e) {
+          promise.reject("ERROR", e.getMessage());
+        } finally {
+          logout(client); // Đăng xuất
+        }
+      }
+    }).start();
   }
 
   @Override
