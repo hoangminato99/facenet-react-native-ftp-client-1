@@ -1,4 +1,6 @@
 import { EmitterSubscription } from 'react-native';
+import { moveFile } from 'react-native-fs';
+import { move } from 'react-native-redash';
 export declare const enum FtpFileType {
     Dir = "dir",
     File = "file",
@@ -30,5 +32,7 @@ declare module FtpClient {
     const ERROR_MESSAGE_CANCELLED: string;
     function downloadFile(local_path: string, remote_path: string): Promise<void>;
     function cancelDownloadFile(token: string): Promise<void>;
+    function makedir(remote_path: string): Promise<void>;
+    function moveFileOrDirectory(remote_path: string, new_remote_path: string): Promise<void>;
 }
 export default FtpClient;
